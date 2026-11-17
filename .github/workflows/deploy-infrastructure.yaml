@@ -1,11 +1,16 @@
+# =====================================================================
+# DISABLED (Phase 2 / Pas 0): automatic push triggers removed.
+# Previously deployed to GKE and ran `terraform apply -auto-approve` on push
+# to ANY branch. Now MANUAL-ONLY (workflow_dispatch). Target: Coolify (Docker).
+# Re-enable only after explicit review. No automatic runs on push.
+# =====================================================================
+# These workflows deployed to GKE and ran `terraform apply -auto-approve`.
+# They are now MANUAL-ONLY (workflow_dispatch) and must not run automatically.
 name: DEPLOY_Infrastructure
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - .github/workflows/deploy-infrastructure.yaml
-      - infrastructure/**
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
