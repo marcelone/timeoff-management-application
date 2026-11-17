@@ -1,12 +1,41 @@
 #!/usr/bin/env node
+'use strict';
 
-var debug = require('debug')('vacation-tracker');
-var app   = require('../app');
+/*
+ * Application entrypoint.
+ * Applies pending migrations, then starts the HTTP server with graceful shutdown.
+ * (Replaces legacy sequelize.sync()-then-listen.)
+ */
 
-app.set('port', process.env.PORT || 3000);
+require('../lib/promise-shim');
 
-app.get('db_model').sequelize.sync().then(function () {
-  var server = app.listen(app.get('port'), function() {
-    debug('Express server listening on port ' + server.address().port);
+const debug = require('debug')('timeoff');
+const app = require('../app');
+const db = require('../lib/model/db');
+const { runMigrations } = require('../lib/migrate');
+
+const port = parseInt(process.env.PORT || '3000', 10);
+
+(async () => {
+  await runMigrations(db.sequelize);
+  debug('migrations applied');
+
+  const server = app.listen(port, () => {
+    debug(`Express server listening on port ${server.address().port}`);
+    console.log(`TimeOff HR platform listening on port ${server.address().port} (${process.env.NODE_ENV || 'development'})`);
   });
+
+  const shutdown = (signal) => {
+    console.log(`${signal} received: closing HTTP server and database`);
+    server.close(async () => {
+      try { await db.sequelize.close(); } catch (e) { /* ignore */ }
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+})().catch((err) => {
+  console.error('Failed to start application:', err);
+  process.exit(1);
 });

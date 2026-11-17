@@ -5,3 +5,10 @@
 *.swm
 node_modules/
 *.sqlite
+
+.npm-cache/
+.env
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm

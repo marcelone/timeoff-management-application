@@ -1,3 +1,6 @@
+'use strict';
+require('./lib/promise-shim');
+require('./lib/validator-shim');
 
 var express      = require('express');
 var path         = require('path');
@@ -16,6 +19,7 @@ var handlebars = require('express-handlebars')
     defaultLayout : 'main',
     extname       : '.hbs',
     helpers       : require('./lib/view/helpers')(),
+    runtimeOptions : { allowProtoPropertiesByDefault: true, allowProtoMethodsByDefault: true },
   });
 
 app.engine('.hbs', handlebars.engine);

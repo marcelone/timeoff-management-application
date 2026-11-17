@@ -1,13 +1,34 @@
 # =====================================================================
 # DISABLED (Phase 2 / Pas 0): automatic push triggers removed.
-# Previously deployed to GKE and ran `terraform apply -auto-approve` on push
-# to ANY branch. Now MANUAL-ONLY (workflow_dispatch). Target: Coolify (Docker).
-# Re-enable only after explicit review. No automatic runs on push.
+# These workflows deployed to GKE and ran `terraform apply -auto-approve`.
+# They are now MANUAL-ONLY (workflow_dispatch) and must not run automatically.
+# Target deployment is Coolify (Docker). Re-enable only after explicit review.
 # =====================================================================
 name: DEPLOY_Dev_tiemoff
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["**"]
+    paths:
+      - .github/workflows/deploy-dev-timeoff.yaml
+      - bin/**
+      - config/**
+      - helm-tiemoff/**
+      - lib/**
+      - migrations/**
+      - public/**
+      - scss/**
+      - helm-tiemoff/**
+      - views/**
+
+
+env:
+  PROJECT_ID: big-liberty-373120
+  DOCKER_IMAGE: timeoff
+  CLUSTER_NAME: gke-timeoff-big-liberty-373120
+  CLUSTER_LOCATION: us-central1
+
 
 jobs:
   test:
