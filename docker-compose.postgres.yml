@@ -1,0 +1,38 @@
+# PostgreSQL override (preferred production engine).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build
+#
+# Adds a PostgreSQL service with a healthcheck and makes the app wait for it
+# (depends_on: service_healthy), and switches the app to DB_DIALECT=postgres.
+
+services:
+  app:
+    environment:
+      DB_DIALECT: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: timeoff
+      DB_USER: timeoff
+      DB_PASSWORD: "${DB_PASSWORD:-timeoff}"
+      DB_SSL: "${DB_SSL:-false}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: timeoff
+      POSTGRES_USER: timeoff
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-timeoff}"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U timeoff -d timeoff"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  pg-data:
