@@ -78,7 +78,11 @@ app.set('db_model', require('./lib/model/db'));
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(__dirname + '/public/favicon.ico'));
-app.use(logger(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+// Redact sensitive query params (CSRF / reset tokens) from access logs.
+logger.token('safe-url', (req) => String(req.originalUrl || req.url || '').replace(/([?&])(_csrf|t)=[^&]*/g, '$1$2=REDACTED'));
+app.use(logger(process.env.NODE_ENV === 'production'
+  ? ':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'
+  : ':method :safe-url :status :response-time ms - :res[content-length]'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());

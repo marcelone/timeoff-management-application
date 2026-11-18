@@ -10,8 +10,10 @@ function csvBuffer(rows) {
 
 async function importCsv(ag, buffer, { withCsrf = true, filename = 'users.csv' } = {}) {
   const token = await freshCsrf(ag);
-  const url = withCsrf ? `/users/import/?_csrf=${token}` : '/users/import/';
-  return ag.post(url).attach('users_import', buffer, filename);
+  // CSRF token travels in the multipart BODY, never in the URL.
+  const req = ag.post('/users/import/').attach('users_import', buffer, filename);
+  if (withCsrf) req.field('_csrf', token);
+  return req;
 }
 
 describe('CSV bulk import (multipart + CSRF)', () => {
