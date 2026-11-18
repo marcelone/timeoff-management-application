@@ -1,0 +1,42 @@
+name: CI
+
+# Validation-only CI: install, test, build. NO deployment credentials, NO
+# Terraform/Helm/production actions. The legacy GKE/Terraform deploy workflows
+# remain manual-only (workflow_dispatch) and are intentionally not triggered here.
+
+on:
+  push:
+    branches: ["master", "feature/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Install + test (Node 24, isolated SQLite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies (clean)
+        run: npm ci --no-audit --no-fund
+      - name: Ensure native bindings (bcrypt, sqlite3)
+        run: npm rebuild bcrypt sqlite3 --foreground-scripts
+      - name: Compile styles (Dart Sass)
+        run: npm run compile-sass
+      - name: Run automated tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
+  build:
+    name: Docker build (no push, no deploy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t timeoff-hr:ci .
