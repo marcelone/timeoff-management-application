@@ -11,21 +11,62 @@ var bodyParser   = require('body-parser');
 var moment       = require('moment');
 const createSessionMiddleware = require('./lib/middleware/withSession');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { createAuthRateLimit } = require('./lib/middleware/auth-rate-limit');
 const csrfProtection = require('./lib/middleware/csrf');
 
 var app = express();
 
 if (String(process.env.TRUST_PROXY) === 'true') app.set('trust proxy', 1);
-app.use(helmet({ contentSecurityPolicy: false }));
 
-// View engine setup
+// Per-request CSP nonce for the (optional) inline analytics script.
+app.use((req, res, next) => {
+  res.locals.cspNonce = require('crypto').randomBytes(16).toString('base64');
+  next();
+});
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, "https://www.google-analytics.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https://www.google-analytics.com"],
+      connectSrc: ["'self'", "https://www.google-analytics.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+    },
+  },
+}));
+
+// View engine setup.
+// Handlebars proto-access is tightened: only methods defined on our Sequelize
+// models may be invoked from templates (allowProtoMethodsByDefault:false + an
+// explicit whitelist built from the model prototypes). Attribute getters remain
+// accessible as data (allowProtoPropertiesByDefault:true); Handlebars still blocks
+// dangerous members (constructor/__proto__/__defineGetter__...) by default.
+const dbModels = require('./lib/model/db');
+const allowedProtoMethods = {};
+for (const modelName of Object.keys(dbModels)) {
+  const M = dbModels[modelName];
+  if (M && M.prototype) {
+    for (const k of Object.getOwnPropertyNames(M.prototype)) {
+      if (k === 'constructor') continue;
+      // Use the descriptor: reading M.prototype[k] would invoke Sequelize
+      // attribute getters on the prototype (no dataValues) and throw.
+      const desc = Object.getOwnPropertyDescriptor(M.prototype, k);
+      if (desc && typeof desc.value === 'function') allowedProtoMethods[k] = true;
+    }
+  }
+}
 var handlebars = require('express-handlebars')
   .create({
     defaultLayout : 'main',
     extname       : '.hbs',
     helpers       : require('./lib/view/helpers')(),
-    runtimeOptions : { allowProtoPropertiesByDefault: true, allowProtoMethodsByDefault: true },
+    runtimeOptions : { allowProtoPropertiesByDefault: true, allowProtoMethodsByDefault: false, allowedProtoMethods },
   });
 
 app.engine('.hbs', handlebars.engine);
@@ -68,18 +109,7 @@ app.use(passport.session());
 app.use(csrfProtection);
 
 // Rate-limit authentication endpoints.
-const authLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-  max: parseInt(process.env.RATE_LIMIT_MAX || '50', 10),
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use((req, res, next) => {
-  if (req.method === 'POST' && /^\/(login|register|forgot-password|reset-password)/.test(req.path)) {
-    return authLimiter(req, res, next);
-  }
-  return next();
-});
+app.use(createAuthRateLimit());
 
 
 
@@ -206,12 +236,12 @@ if (app.get('env') === 'development') {
     });
 }
 
-// production error handler
-// no stacktraces leaked to user
+// production error handler: generic message to the client, details logged server-side.
 app.use(function(err, req, res, next) {
+    console.error('Unhandled error:', err && err.stack ? err.stack : err);
     res.status(err.status || 500);
     res.render('error', {
-        message: err.message,
+        message: 'An unexpected error occurred. Please try again later.',
         error: {}
     });
 });

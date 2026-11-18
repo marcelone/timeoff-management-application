@@ -293,3 +293,12 @@ $(document).ready(function() {
     return false;
   });
 });
+
+
+// CSP-safe confirmation for destructive forms (replaces inline onsubmit).
+$(document).on('submit', 'form.js-confirm-delete', function(e){
+  var name = $(this).data('confirm-name') || '';
+  if (!window.confirm('Do you really want to delete the user ' + name + '?')) {
+    e.preventDefault();
+  }
+});
