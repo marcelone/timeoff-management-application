@@ -52,7 +52,7 @@
     <p class="text-bigger">
       <strong>3.</strong> Upload <strong>.CSV</strong> file:
 
-      <form action="/users/import/" method="post" role="form" enctype="multipart/form-data" class="panel-body">
+      <form action="/users/import/?_csrf={{csrf_token}}" method="post" role="form" enctype="multipart/form-data" class="panel-body">
   <input type="hidden" name="_csrf" value="{{csrf_token}}">
         <div class="form-group">
           <input id="users_input_inp" type="file" name="users_import">
