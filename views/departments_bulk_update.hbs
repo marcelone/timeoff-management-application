@@ -25,9 +25,11 @@
 
 <div class="row">&nbsp;</div>
 
-<form id="delete_form" method="post" action="/settings/departments/delete/"></form>
+<form id="delete_form" method="post" action="/settings/departments/delete/">
+  <input type="hidden" name="_csrf" value="{{csrf_token}}"></form>
 
 <form method="post" action="/settings/departments-bulk-update/" id="edit_department_form">
+  <input type="hidden" name="_csrf" value="{{csrf_token}}">
 
 {{# unless departments.length }}
 <div class="row">

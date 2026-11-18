@@ -10,8 +10,14 @@ var cookieParser = require('cookie-parser');
 var bodyParser   = require('body-parser');
 var moment       = require('moment');
 const createSessionMiddleware = require('./lib/middleware/withSession');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const csrfProtection = require('./lib/middleware/csrf');
 
 var app = express();
+
+if (String(process.env.TRUST_PROXY) === 'true') app.set('trust proxy', 1);
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // View engine setup
 var handlebars = require('express-handlebars')
@@ -31,7 +37,7 @@ app.set('db_model', require('./lib/model/db'));
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(__dirname + '/public/favicon.ico'));
-app.use(logger('dev'));
+app.use(logger(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -47,6 +53,23 @@ app.use(createSessionMiddleware({
 }))
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CSRF protection (session synchronizer token) for cookie-authenticated requests.
+app.use(csrfProtection);
+
+// Rate-limit authentication endpoints.
+const authLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
+  max: parseInt(process.env.RATE_LIMIT_MAX || '50', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use((req, res, next) => {
+  if (req.method === 'POST' && /^\/(login|register|forgot-password|reset-password)/.test(req.path)) {
+    return authLimiter(req, res, next);
+  }
+  return next();
+});
 
 
 

@@ -29,6 +29,7 @@
   <div class="col-md-12">
 
     <form class="form-horizontal" method="POST" action="/users/add/" id="add_new_user_form">
+  <input type="hidden" name="_csrf" value="{{csrf_token}}">
 
       <div class="form-group">
         <label for="name_inp" class="col-md-3 control-label">First Name</label>

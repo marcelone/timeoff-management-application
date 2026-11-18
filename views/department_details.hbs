@@ -4,6 +4,7 @@
 <h1>{{department.name}} details</h1>
 
 <form method="post" action="/settings/departments/delete/{{ department.id }}/">
+  <input type="hidden" name="_csrf" value="{{csrf_token}}">
   <div class="row">
     <div class="col-md-3 lead">
       Department details
