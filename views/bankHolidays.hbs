@@ -92,13 +92,13 @@
     {{/unless}}
 
     <form id="delete_bankholiday_form" method="post" action="/settings/bankholidays/delete/">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
       <input name="year" value="{{yearCurrent}}" type="hidden">
     </form>
     <form id="import_bankholiday_form" method="post" action="/settings/bankholidays/import/?year={{yearCurrent}}">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}"></form>
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}"></form>
     <form id="update_bankholiday_form" method="post" action="/settings/bankholidays/?year={{yearCurrent}}">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
     {{#each bankHolidays}}
     <div class="row">
       <div class="col-md-4">

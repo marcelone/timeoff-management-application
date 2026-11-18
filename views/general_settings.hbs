@@ -21,7 +21,7 @@
 
           <div class="col-md-5">
             <form class="form-horizontal" method="POST" action="/settings/company/" id="company_edit_form">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
               <div class="form-group">
                 <label for="input_company_name" class="col-md-4 control-label">Company name</label>
                 <div class="col-md-8">
@@ -133,7 +133,7 @@
             </div>
 
             <form class="form-horizontal" method="POST" action="/settings/schedule" id="company_schedule_form">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
             <input type="hidden" name="company_wide" value="1">
             <div class="form-group">
               <label for="" class="col-md-6 control-label">Company week schedule</label>
@@ -167,7 +167,7 @@
               </div>
               <div class="form-group">
                 <form class="col-md-offset-2 col-md-11" id="calculate_carry_over_form" method="post" action="/settings/carryOverUnusedAllowance">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
                   <button class="btn btn-success pull-right single-click" type="submit"><i class="fa fa-share"></i> Carry over allowance</button>
                 </form>
               </div>
@@ -203,9 +203,9 @@
         <div class="row">&nbsp;</div>
 
         <form id="delete_leavetype_form" method="post" action="/settings/leavetypes/delete/">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}"></form>
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}"></form>
         <form id="leave_type_edit_form" method="post" action="/settings/leavetypes/">
-  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
 
         {{#unless leave_types.length }}
         <div class="row">
