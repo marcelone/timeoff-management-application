@@ -1,42 +1,31 @@
-# -------------------------------------------------------------------
-# Minimal dockerfile from alpine base
-#
-# Instructions:
-# =============
-# 1. Create an empty directory and copy this file into it.
-#
-# 2. Create image with: 
-#	docker build --tag timeoff:latest .
-#
-# 3. Run with: 
-#	docker run -d -p 3000:3000 --name alpine_timeoff timeoff
-#
-# 4. Login to running container (to update config (vi config/app.json): 
-#	docker exec -ti --user root alpine_timeoff /bin/sh
-# --------------------------------------------------------------------
-FROM alpine:latest as dependencies
+# syntax=docker/dockerfile:1
 
-RUN apk add --no-cache \
-    nodejs npm build-base python3 sqlite make gcc musl-dev libc-dev 
-
-COPY package.json  .
-RUN npm install 
-
-FROM alpine:latest
-
-LABEL org.label-schema.schema-version="1.0"
-LABEL org.label-schema.docker.cmd="docker run -d -p 3000:3000 --name alpine_timeoff"
-
-RUN apk add --no-cache \
-    nodejs npm \
-    vim
-
-RUN adduser --system app --home /app
-USER app
+# ---- Dependencies (production only) ----
+FROM node:24-slim AS deps
 WORKDIR /app
-COPY . /app
-COPY --from=dependencies node_modules ./node_modules
+COPY package.json package-lock.json ./
+# allowScripts approvals are pinned in package.json (bcrypt, sqlite3).
+RUN npm ci --omit=dev --no-audit --no-fund
 
-CMD npm start
+# ---- Runtime ----
+FROM node:24-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
 
+# Native modules (bcrypt/sqlite3) ship prebuilt NAPI binaries; no build tools needed.
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Persistent data dir for SQLite (mount a volume here in production).
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
+
+ENV PORT=3000
+ENV DB_DIALECT=sqlite
+ENV DB_STORAGE=/app/data/timeoff.sqlite
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "bin/wwww"]

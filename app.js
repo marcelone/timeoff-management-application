@@ -43,6 +43,16 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Liveness/readiness probe (public, used by Docker/Coolify healthcheck).
+app.get('/healthz', async (req, res) => {
+  try {
+    await app.get('db_model').sequelize.authenticate();
+    res.json({ status: 'ok' });
+  } catch (e) {
+    res.status(503).json({ status: 'error' });
+  }
+});
+
 
 
 // Setup authentication mechanism

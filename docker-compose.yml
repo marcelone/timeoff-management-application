@@ -1,0 +1,45 @@
+# TimeOff HR platform — reproducible deployment (Coolify-ready).
+#
+# Default: single container + SQLite on a persistent volume.
+# Optional PostgreSQL: `docker compose --profile postgres up` and set
+# DB_DIALECT=postgres + DB_* on the app service.
+
+services:
+  app:
+    build: .
+    image: timeoff-hr:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      SESSION_SECRET: "${SESSION_SECRET:?set SESSION_SECRET in .env}"
+      DB_DIALECT: sqlite
+      DB_STORAGE: /app/data/timeoff.sqlite
+      TRUST_PROXY: "true"
+      SEND_EMAILS: "${SEND_EMAILS:-false}"
+      SMTP_HOST: "${SMTP_HOST:-localhost}"
+      SMTP_PORT: "${SMTP_PORT:-25}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      APPLICATION_DOMAIN: "${APPLICATION_DOMAIN:-http://localhost:3000}"
+      ALLOW_CREATE_NEW_ACCOUNTS: "${ALLOW_CREATE_NEW_ACCOUNTS:-true}"
+    volumes:
+      - app-data:/app/data
+    restart: unless-stopped
+
+  # Optional PostgreSQL backend (enable with --profile postgres).
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: timeoff
+      POSTGRES_USER: timeoff
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-timeoff}"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  app-data:
+  pg-data:
