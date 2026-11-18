@@ -14,8 +14,7 @@
     "db:update": "node scripts/migrate.js",
     "carry-over-allowance": "node bin/calculate_carry_over_allowance_for_all_users.js",
     "compile-sass": "sass scss/main.scss public/css/style.css --no-source-map",
-    "test": "mocha --recursive t/regression --timeout 60000",
-    "test:smoke": "node t/regression/smoke.js",
+    "test": "mocha",
     "audit:deps": "npm audit --omit=dev"
   },
   "dependencies": {

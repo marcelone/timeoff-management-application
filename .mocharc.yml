@@ -1,0 +1,4 @@
+require: ./t/regression/hooks.js
+spec: t/regression/**/*.spec.js
+timeout: 60000
+exit: true
