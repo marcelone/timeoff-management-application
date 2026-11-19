@@ -1,0 +1,121 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Expected schedules</h1>
+    <p class="lead">
+      Planned working hours, shown in <strong>{{timezone}}</strong>. These are expectations only —
+      they never create worked time.
+    </p>
+
+    {{# if scope_timezone }}
+      <p class="text-muted">
+        {{# if scope_timezone.subject_label }}
+          Effective time zone for <strong>{{scope_timezone.subject_label}}</strong>:
+        {{ else }}
+          Effective time zone for this scope:
+        {{/if}}
+        <strong>{{scope_timezone.timezone}}</strong> (from the {{scope_timezone.source_label}}).
+      </p>
+    {{/if}}
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <form action="/time/schedule/" method="GET" class="form-inline" style="margin-bottom: 18px;">
+      <div class="form-group">
+        <label for="scope">Scope</label>
+        <select class="form-control" id="scope" name="scope">
+          <option value="company" {{#if_equal selected_scope 'company'}}selected="selected"{{/if_equal}}>
+            Company (default)
+          </option>
+          {{# each department_options }}
+            <option value="{{this.scope}}" {{#if_equal ../selected_scope this.scope}}selected="selected"{{/if_equal}}>
+              {{this.label}}
+            </option>
+          {{/each}}
+          {{# each user_options }}
+            <option value="{{this.scope}}" {{#if_equal ../selected_scope this.scope}}selected="selected"{{/if_equal}}>
+              {{this.label}}
+            </option>
+          {{/each}}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-default">Show</button>
+    </form>
+
+    <div class="alert alert-info">
+      Resolution order: <strong>employee</strong> &gt; <strong>department</strong> &gt; <strong>company</strong>.
+      Each day is one of three explicit states:
+      <em>inherit</em> (use the wider scope), <em>working day</em> with hours, or
+      <em>not working</em> (stops inheritance — used for part-time weeks).
+    </div>
+
+    <form action="/time/schedule/" method="POST">
+      <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+      <input type="hidden" name="scope" value="{{selected_scope}}">
+
+      <table class="table table-condensed">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th style="width: 150px;">Setting</th>
+            <th style="width: 130px;">Start</th>
+            <th style="width: 130px;">End</th>
+            <th>If inherited</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{# each week }}
+            <tr>
+              <td>{{this.label}}</td>
+              <td>
+                <select class="form-control" name="mode_{{this.weekday}}">
+                  <option value="inherit" {{#if_equal this.mode 'inherit'}}selected="selected"{{/if_equal}}>Inherit</option>
+                  <option value="work" {{#if_equal this.mode 'work'}}selected="selected"{{/if_equal}}>Working day</option>
+                  <option value="off" {{#if_equal this.mode 'off'}}selected="selected"{{/if_equal}}>Not working</option>
+                </select>
+              </td>
+              <td>
+                <input type="time" class="form-control" name="start_{{this.weekday}}"
+                       value="{{this.start}}" placeholder="09:00">
+              </td>
+              <td>
+                <input type="time" class="form-control" name="end_{{this.weekday}}"
+                       value="{{this.end}}" placeholder="17:00">
+              </td>
+              <td class="text-muted">{{this.inherited_label}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <button type="submit" class="btn btn-success">Save schedule</button>
+    </form>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <hr>
+    <form action="/time/schedule/template/" method="POST" class="form-inline">
+      <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+      <input type="hidden" name="scope" value="{{selected_scope}}">
+      <button type="submit" class="btn btn-default">
+        Apply office template (Mon–Fri 09:00–17:00, weekend off)
+      </button>
+      <span class="text-muted">Only for the selected scope, and only when you click it.</span>
+    </form>
+
+    {{# unless has_any }}
+      <p class="text-muted" style="margin-top: 12px;">
+        This scope currently has no explicit days: every day inherits from the wider scope.
+      </p>
+    {{/unless}}
+  </div>
+</div>
+
+{{> footer }}

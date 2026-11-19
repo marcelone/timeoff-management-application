@@ -62,7 +62,9 @@ describe('HR architecture foundations', () => {
     assert.ok(ids.includes('absences'));
     assert.ok(ids.includes('payroll'));
     assert.strictEqual(getModule('absences').status, 'active');
-    assert.strictEqual(getModule('time-tracking').status, 'planned');
+    // time-tracking became an active module when block 1 shipped.
+    assert.strictEqual(getModule('time-tracking').status, 'active');
+    assert.strictEqual(getModule('payroll').status, 'planned');
     assert.ok(activeModules().every((m) => m.status === 'active'));
   });
 });

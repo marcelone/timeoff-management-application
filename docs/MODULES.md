@@ -78,3 +78,74 @@ empresa, permisos, auditoria i BD són efectives i reutilitzables (provades via
 WorkCenter i els routers integrats). El registre de mòduls i l'encapsulació del
 nucli/absències en directoris de mòdul són la part declarativa/pendent. Es garanteix
 que els futurs mòduls podran usar les mateixes regles sense refer el nucli.
+
+
+---
+
+## Mòdul `time-tracking` — bloc 1 (registre bàsic de jornada)
+
+Implementat com el primer mòdul de negoci real sobre aquest contracte.
+
+**Fitxers**
+
+- `lib/model/db/time_entry.js` — jornada (estat, modalitat, inici/fi UTC, `companyId`, `userId`).
+- `lib/model/db/time_entry_event.js` — log append-only d'esdeveniments (`in`/`out`, `source` = direct|declared|auto).
+- `lib/model/db/work_schedule_day.js` — hores previstes per dia (`scope_type` =
+  company|department|user). Cada dia té **tres estats explícits**: heretar (cap fila),
+  laborable amb hores, o **no laborable** (`is_working_day = false`, que atura
+  l'herència — necessari per a jornades parcials).
+- `lib/modules/time/schedule.js` — resolució única de la jerarquia `user > department > company` + timezone i format.
+- `lib/modules/time/clock.js` — servei d'inici/fi amb hora de servidor i transaccions.
+- `lib/route/time.js` — `/time/`, `/time/start`, `/time/stop`, `/time/schedule/`.
+- `views/time/index.hbs`, `views/time/schedule.hbs`.
+- `migrations/20260104000000-time-tracking.js`.
+- `t/regression/time-tracking.spec.js`.
+
+**Decisions**
+
+- **Jornada separada d'esdeveniments**: l'estat viu a `time_entries` i els fets a
+  `time_entry_events`, de manera que pauses, correccions i tancaments automàtics
+  s'afegiran com a esdeveniments nous sense sobrecarregar la fila mutable.
+- **Una sola jornada oberta**: garantida per un **índex únic parcial**
+  (`time_entries_one_open_per_user ... WHERE status='open'`) present a PostgreSQL i
+  SQLite, no només per codi. Verificat a PG: el segon INSERT falla.
+- **Sortida > entrada**: `CHECK` a PostgreSQL; validació de model per a SQLite
+  (que no pot afegir CHECK a taules existents).
+- **Hora del servidor**: les rutes no llegeixen cap hora del cos de la petició;
+  es desa UTC i es presenta amb la timezone del centre o de l'empresa.
+- **Permisos**: `time.clock` (tothom) i `time.schedules.manage` (owner/admin).
+  No s'assumeix que `Department.boss` tingui el rol RBAC `manager`.
+- **Sense dades fictícies**: cap empresa existent rep horaris; la plantilla
+  d'oficina només s'aplica quan un administrador la desa explícitament.
+- **Dia de la setmana en la timezone efectiva** (centre > empresa > UTC), no en UTC.
+- **Eliminació d'empleat**: `User.remove` és transaccional i es bloqueja si hi ha
+  fitxatges (l'historial es preserva; la FK és NO ACTION com a xarxa de seguretat).
+  Abans, un error de FK podia deixar l'empleat viu amb les absències ja esborrades.
+- **CSRF i multipart**: només `/users/import/` pot enviar `multipart/form-data`
+  (i valida el token del body); qualsevol altre endpoint amb multipart es rebutja.
+- **Handlers async**: `/time/*` embolcalla els handlers perquè un rebuig arribi al
+  middleware d'errors en lloc de tombar el procés (Express 4 no ho fa sol).
+- **Tancament de jornada**: es comprova `endedAt > startedAt` al servei, perquè
+  SQLite no pot afegir el CHECK que sí té PostgreSQL.
+
+**Zones horàries (bloc 1, completat)**
+
+- Jerarquia: **centre de treball > empresa > UTC**. `WorkCenter.timezone` és
+  opcional i NULL significa «hereta de l'empresa» (sense canvi d'esquema).
+- Selector de centre a `/settings/workcenters/` (permís `workcenters.manage`,
+  `ensureTenant`): crear centre i triar zona IANA o «Heretar de l'empresa».
+  Validació al servidor amb la mateixa llista que valida l'empresa
+  (`moment-timezone`), també per a peticions manipulades.
+- `/time/` i `/time/schedule/` mostren sempre zona efectiva **i origen**. En
+  configurar l'horari d'un empleat concret es mostra la zona efectiva d'aquell
+  empleat (el seu centre), no la de l'administrador que edita.
+- `resolveWeekForUser` construeix les dates de referència **dins la zona**, així
+  el dilluns continua sent el primer element a `Pacific/Auckland` i
+  `Pacific/Kiritimati`.
+- Els fitxatges són instants UTC generats pel servidor: canviar la configuració
+  no reescriu cap registre, només canvia com es mostra.
+- `Company.get_today()` fa fallback a UTC si l'empresa no té zona (abans llançava
+  i provocava un 500 a qualsevol pàgina).
+
+**Fora d'abast (blocs següents)**: pauses, correccions, incidències,
+autoresolució, recordatoris, scheduler, estadístiques.
