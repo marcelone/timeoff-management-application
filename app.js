@@ -204,6 +204,8 @@ app.use('/settings/', require('./lib/route/bankHolidays'));
 // Time tracking (block 1): own sessions + expected schedules.
 app.use('/time', require('./lib/route/time'));
 app.use('/time', require('./lib/route/corrections'));
+// Time tracking (block 4): work-time incidents (communication, never a correction).
+app.use('/time', require('./lib/route/incidents'));
 
 app.use(
   '/users/',

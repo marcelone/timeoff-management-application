@@ -1,0 +1,108 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Work-time incidents</h1>
+    <p class="lead">
+      An incident reports a situation: a clocking problem, an interruption, a
+      discrepancy. It never changes your clock record by itself.
+      Dates are shown in <strong>{{timezone}}</strong>.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        My incidents
+        <a class="pull-right" href="/time/incidents/new/">Report an incident</a>
+      </div>
+      <div class="panel-body">
+
+        <p class="text-muted" style="margin-bottom: 12px;">
+          To change a clock-in, a clock-out or a break, use a
+          <a href="/time/corrections/new/">correction request</a> instead.
+          For holidays, sick leave or any other absence, use the
+          <a href="/calendar/">absence process</a>.
+        </p>
+
+        <ul class="nav nav-pills" style="margin-bottom: 16px;">
+          {{# each filters }}
+            <li class="{{# if_equal this.value @root.current_filter }}active{{/if_equal}}">
+              <a href="/time/incidents/{{# if this.value }}?status={{this.value}}{{/if}}">{{this.label}}</a>
+            </li>
+          {{/each}}
+        </ul>
+
+        {{# if this.incidents }}
+          <div class="table-responsive">
+            <table class="table table-condensed">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Last activity</th>
+                  <th>Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{# each this.incidents }}
+                  <tr>
+                    <td>{{this.local_date}}</td>
+                    <td>{{this.type_label}}</td>
+                    <td><a href="/time/incidents/{{this.id}}/">{{this.title}}</a></td>
+                    <td>
+                      {{# if this.is_resolved }}
+                        <span class="label label-success">{{this.status_label}}</span>
+                      {{ else if this.is_in_review }}
+                        <span class="label label-warning">{{this.status_label}}</span>
+                      {{ else if this.is_dismissed }}
+                        <span class="label label-default">{{this.status_label}}</span>
+                      {{ else }}
+                        <span class="label label-info">{{this.status_label}}</span>
+                      {{/if}}
+                    </td>
+                    <td>{{this.last_activity_at}}</td>
+                    <td>
+                      {{# if this.is_final }}
+                        {{this.resolution}}
+                      {{ else }}
+                        <span class="text-muted">Waiting</span>
+                      {{/if}}
+                    </td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+        {{ else }}
+          <p class="text-muted">
+            {{# if_equal current_filter "" }}
+              You have not reported any incident yet.
+            {{ else }}
+              There is no incident with this status.
+            {{/if_equal}}
+          </p>
+        {{/if}}
+
+      </div>
+    </div>
+
+    <p>
+      <a href="/time/" class="btn btn-default">Back to time tracking</a>
+      <a href="/time/corrections/" class="btn btn-default">My corrections</a>
+      {{# if this.can_see_queue }}
+        <a href="/time/incidents/queue/" class="btn btn-default">
+          Incidents waiting for a decision{{# if this.queue_pending }} ({{this.queue_pending}}){{/if}}
+        </a>
+      {{/if}}
+    </p>
+  </div>
+</div>
+
+{{> footer }}

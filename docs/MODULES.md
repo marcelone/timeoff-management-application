@@ -288,3 +288,96 @@ Implementat com el primer mòdul de negoci real sobre aquest contracte.
 interactius, scheduler, autotancament provisional, detecció de patrons,
 alertes per excés de correccions, dashboard analític de supervisió,
 geolocalització, nòmines, hores extres aprovades i integracions externes.
+
+**Incidències de jornada i autogestió (bloc 4)**
+
+- Taules noves: `time_incidents` (la incidència) i `time_incident_entries` (el
+  fil d'activitat). Migració `20260108000000-time-incidents.js`, amb tota la DDL
+  en una transacció (com els blocs 2 i 3) i `down` reversible.
+- **Una incidència comunica, no corregeix.** És la diferència essencial amb el
+  bloc 3: una *correcció* diu «vaig entrar a les 09:00 i vaig registrar les
+  09:30» i canvia el registre efectiu a través d'una sol·licitud aprovada; una
+  *incidència* diu «el sistema no funcionava i necessito explicar què ha passat»
+  i **no toca cap fitxatge, cap pausa, cap còmput ni cap saldo d'absències**. Si
+  la persona també ha de corregir una hora, la interfície l'adreça al formulari
+  de correccions existent: no hi ha un segon sistema de correccions.
+- **Tipus tancats** (`clocking_problem`, `work_interruption`,
+  `schedule_discrepancy`, `exceptional_circumstance`, `other`): una taxonomia
+  inicial fixa, no un sistema lliure de categories per empresa. El text obert
+  viu a la descripció. No hi ha categories mèdiques ni dades de salut.
+- **Estats i transicions**: `open → in_review`, `open → resolved`,
+  `open → dismissed`, `in_review → resolved`, `in_review → dismissed`. Els
+  estats finals són terminals (no hi ha reobertura ni escalat en aquest bloc), i
+  la matriu es valida al servei i amb un `UPDATE` condicional sobre l'estat
+  esperat.
+- **Permisos** (decidits al servei, no a la vista): l'empleat crea i llegeix les
+  seves incidències i hi afegeix aclariments; un supervisor real
+  (`Department.boss` o `DepartmentSupervisor`, llegit a cada petició) les
+  consulta, les posa en revisió, respon, resol i descarta; l'owner/admin ho pot
+  fer a tota l'empresa. El rol RBAC `manager` **no** dona accés per si sol.
+  Com que el vincle es llegeix a cada petició, revocar-lo o canviar la persona de
+  departament té efecte immediat.
+- **Incidències pròpies**: per coherència amb el bloc 3, un owner/admin pot
+  resoldre les seves (excepció administrativa explícita), mentre que un
+  supervisor ordinari **no** pot resoldre la seva. L'excepció es traça en tres
+  llocs: `time_incidents.self_resolved`, una fila d'auditoria amb
+  `attribute='administrative_self_resolution'` i el fil d'activitat.
+- **Fil d'activitat append-only**: `time_incident_entries` només s'insereix; cap
+  entrada s'edita ni s'esborra, i no hi ha cap ruta que ho permeti. Cada entrada
+  porta autor, empresa, incidència, instant UTC, contingut i tipus (`comment`,
+  `in_review`, `resolved`, `dismissed`, `link`). Text pla; les plantilles
+  escapen el contingut i els salts de línia es respecten amb CSS, sense editor
+  enriquit ni JavaScript.
+- **Regles del fil**: no es pot comentar una incidència tancada, ni una d'aliena;
+  un comentari **no** canvia l'estat; no s'envien correus en aquest bloc i no hi
+  ha xat en temps real.
+- **Relació amb correccions**: una incidència pot apuntar a una sol·licitud de
+  correcció existent (`time_correction_id`), de la mateixa persona i empresa.
+  La vinculació només la pot fer el sol·licitant mentre la incidència no és
+  final. És una **referència**: no aprova, no aplica, no recalcula res, i una
+  correcció en `conflict` no resol la incidència automàticament.
+- **Relació amb absències**: si la situació és una absència (vacances, baixa,
+  permís), la interfície ho explica i enllaça al procés existent
+  (`/calendar/`). Una incidència **no** crea una absència, no toca saldos i no
+  marca cap dia com a justificat.
+- **Auditoria**: cada acció escriu files a `audit` amb
+  `entity_type='TIME_INCIDENT'` (creació amb tipus, títol, data, descripció i
+  referències; cada canvi d'estat amb estat anterior i posterior; el comentari
+  amb la referència a l'entrada; la resolució amb el text i el resolutor; la
+  vinculació amb el valor anterior i el nou; i l'auto-resolució administrativa
+  amb qui l'ha fet i el rol que tenia). El registre és append-only a nivell
+  funcional: mai s'actualitza una fila existent.
+- **Concurrència**: cada mutació bloqueja la fila de la incidència dins de la
+  transacció (`SELECT … FOR UPDATE` a PostgreSQL, `UPDATE` no-op a SQLite) i
+  després fa un `UPDATE` condicional. Dues resolucions no poden guanyar les
+  dues; un comentari o una vinculació que competeixen amb el tancament
+  s'emmagatzemen **abans** o es rebutgen, mai després; dues creacions amb el
+  mateix testimoni d'idempotència produeixen una sola incidència.
+- **Idempotència de creació**: el formulari porta un testimoni aleatori i hi ha
+  un índex únic parcial `(user_id, idempotency_key) WHERE idempotency_key IS NOT
+  NULL`; un doble clic retorna la incidència que ja existeix en lloc de crear-ne
+  una segona.
+- **Garanties de base de dades**: `CHECK` de PostgreSQL sobre `type`, `status`,
+  `kind`, `to_status`, el títol no buit, la coherència «tancada ⇒ resolutor +
+  instant + resposta» i `self_resolved ⇒ resolutor = sol·licitant`. Claus foranes
+  reals: empresa, empleat, autor, resolutor, jornada opcional (`ON DELETE SET
+  NULL`) i correcció opcional (`ON DELETE SET NULL`). A PostgreSQL, la clau
+  forana composta `(incident_id, company_id) → time_incidents (id, company_id)`
+  fa **estructuralment impossible** un fil entre empreses; SQLite no pot afegir
+  una FK composta amb `ALTER`, i el servei valida la mateixa regla.
+- **Conservació de l'historial**: `User.remove` es bloqueja si la persona té
+  incidències (encara que no tingui cap fitxatge) i el `CompanyRemover` esborra
+  explícitament el fil i les incidències dins la mateixa transacció. Eliminar una
+  jornada no destrueix la incidència: la referència queda a `NULL` i el text es
+  conserva.
+- **Dades per al bloc 5** (sense implementar-lo): `opened_at`,
+  `last_activity_at`, `review_started_at`, `resolved_at`, l'estat i el fil amb
+  autors i instants ja permeten detectar «incidència creada», «resposta nova»,
+  «canvi d'estat», «incidència resolta» i «pendent durant un període». No hi ha
+  planificador, ni outbox, ni cap procés en segon pla en aquest bloc.
+
+**Fora d'abast (bloc 4)**: correus automàtics, planificador, autotancament de
+fitxatges, notificacions push, WebSockets, xat en temps real, adjunts,
+reobertures avançades, SLA, escalats automàtics, hores extres, nòmines,
+estadístiques de rendiment, classificació amb IA, un nou sistema d'absències i un
+nou sistema de correccions.

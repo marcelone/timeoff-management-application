@@ -1,0 +1,86 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Incidents waiting for a decision</h1>
+    <p class="lead">
+      {{# if is_administrator }}
+        Every incident of the company. You may decide on any of them.
+      {{ else }}
+        Incidents of the employees you supervise. Open one to answer it.
+      {{/if}}
+      Times are shown in <strong>{{timezone}}</strong>.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">Incidents</div>
+      <div class="panel-body">
+
+        <ul class="nav nav-pills" style="margin-bottom: 16px;">
+          {{# each filters }}
+            <li class="{{# if_equal this.value @root.current_filter }}active{{/if_equal}}">
+              <a href="/time/incidents/queue/{{# if this.value }}?status={{this.value}}{{/if}}">{{this.label}}</a>
+            </li>
+          {{/each}}
+        </ul>
+
+        {{# if this.incidents }}
+          <div class="table-responsive">
+            <table class="table table-condensed">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Employee</th>
+                  <th>Type</th>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Last activity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{# each this.incidents }}
+                  <tr>
+                    <td>{{this.local_date}}</td>
+                    <td>{{this.employee_name}}</td>
+                    <td>{{this.type_label}}</td>
+                    <td><a href="/time/incidents/{{this.id}}/">{{this.title}}</a></td>
+                    <td>
+                      {{# if this.is_resolved }}
+                        <span class="label label-success">{{this.status_label}}</span>
+                      {{ else if this.is_in_review }}
+                        <span class="label label-warning">{{this.status_label}}</span>
+                      {{ else if this.is_dismissed }}
+                        <span class="label label-default">{{this.status_label}}</span>
+                      {{ else }}
+                        <span class="label label-info">{{this.status_label}}</span>
+                      {{/if}}
+                    </td>
+                    <td>{{this.last_activity_at}}</td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+        {{ else }}
+          <p class="text-muted" style="margin-bottom: 0;">
+            There is no incident in your scope with this status.
+          </p>
+        {{/if}}
+
+      </div>
+    </div>
+
+    <p>
+      <a href="/time/incidents/" class="btn btn-default">My incidents</a>
+      <a href="/time/" class="btn btn-default">Back to time tracking</a>
+    </p>
+  </div>
+</div>
+
+{{> footer }}

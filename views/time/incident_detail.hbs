@@ -1,0 +1,251 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>
+      {{incident.title}}
+      {{# if incident.is_resolved }}
+        <span class="label label-success">{{incident.status_label}}</span>
+      {{ else if incident.is_in_review }}
+        <span class="label label-warning">{{incident.status_label}}</span>
+      {{ else if incident.is_dismissed }}
+        <span class="label label-default">{{incident.status_label}}</span>
+      {{ else }}
+        <span class="label label-info">{{incident.status_label}}</span>
+      {{/if}}
+    </h1>
+    <p class="lead">
+      {{incident.type_label}}
+      · reference date <strong>{{incident.local_date}}</strong>
+      · filed {{incident.opened_at}}
+      {{# if incident.employee_name }}
+        by <strong>{{incident.employee_name}}</strong>
+      {{/if}}
+    </p>
+    <p class="text-muted">Times are shown in <strong>{{timezone}}</strong>.</p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-7">
+
+    <div class="panel panel-default">
+      <div class="panel-heading">What was reported</div>
+      <div class="panel-body">
+        <p style="white-space: pre-wrap; margin-bottom: 0;">{{incident.description}}</p>
+      </div>
+    </div>
+
+    <div class="panel panel-default">
+      <div class="panel-heading">Activity</div>
+      <div class="panel-body">
+        {{# if entries }}
+          {{# each entries }}
+            <div class="well" style="margin-bottom: 12px; {{# if this.is_manager_note }}background-color: #f7f9fb;{{/if}}">
+              <p style="margin-bottom: 4px;">
+                <strong>{{this.author_name}}</strong>
+                <span class="text-muted">· {{this.at}}</span>
+                {{# if this.is_manager_note }}
+                  <span class="label label-default">{{this.kind_label}}</span>
+                {{/if}}
+              </p>
+              <p style="white-space: pre-wrap; margin-bottom: 0;">{{this.body}}</p>
+            </div>
+          {{/each}}
+        {{ else }}
+          <p class="text-muted" style="margin-bottom: 0;">
+            No activity yet. The description above is the original report.
+          </p>
+        {{/if}}
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-md-5">
+
+    <div class="panel panel-default">
+      <div class="panel-heading">Situation</div>
+      <div class="panel-body">
+        <p style="margin-bottom: 6px;"><strong>Status:</strong> {{incident.status_label}}</p>
+        <p style="margin-bottom: 6px;"><strong>Filed:</strong> {{incident.opened_at}}</p>
+        {{# if incident.review_started_at }}
+          <p style="margin-bottom: 6px;"><strong>In review since:</strong> {{incident.review_started_at}}</p>
+        {{/if}}
+        {{# if incident.resolved_at }}
+          <p style="margin-bottom: 6px;"><strong>Closed:</strong> {{incident.resolved_at}}</p>
+        {{/if}}
+        {{# if incident.resolver_name }}
+          <p style="margin-bottom: 6px;"><strong>Answered by:</strong> {{incident.resolver_name}}</p>
+        {{/if }}
+        {{# if incident.self_resolved }}
+          <p class="text-muted" style="margin-bottom: 6px;">
+            <span class="label label-default">administrative self-resolution</span>
+            This incident was decided by its own requester, who held the
+            administrative role of the company. The exception is recorded in the
+            audit trail.
+          </p>
+        {{/if}}
+        <p style="margin-bottom: 0;"><strong>Last activity:</strong> {{incident.last_activity_at}}</p>
+      </div>
+    </div>
+
+    {{# if incident.has_entry }}
+      <div class="panel panel-default">
+        <div class="panel-heading">Related work session</div>
+        <div class="panel-body">
+          <p style="margin-bottom: 4px;">
+            {{incident.entry_date}} · {{incident.entry_started_at}}
+            {{# if incident.entry_ended_at }} → {{incident.entry_ended_at}}{{else}} (open){{/if}}
+          </p>
+          <p class="text-muted" style="margin-bottom: 0;">
+            {{incident.entry_modality_label}} · the session itself is not modified by this incident.
+          </p>
+        </div>
+      </div>
+    {{/if}}
+
+    <div class="panel panel-default">
+      <div class="panel-heading">Related correction</div>
+      <div class="panel-body">
+        {{# if incident.has_correction }}
+          <p style="margin-bottom: 4px;">
+            <a href="/time/corrections/#correction-{{incident.correction_id}}">Correction request #{{incident.correction_id}}</a>
+            {{# if incident.correction_status_label }}
+              <span class="label label-default">{{incident.correction_status_label}}</span>
+            {{/if}}
+          </p>
+          <p class="text-muted" style="margin-bottom: 0;">
+            The link is a reference only: it does not approve or apply the
+            correction, and a correction in conflict does not close this incident.
+          </p>
+        {{ else }}
+          <p class="text-muted" style="margin-bottom: 8px;">
+            No correction request is linked to this incident.
+          </p>
+          <p style="margin-bottom: 8px;">
+            Need to change a clock time?
+            <a href="/time/corrections/new/">Make a correction request.</a>
+          </p>
+          {{# if linkable_corrections }}
+            <form action="/time/incidents/{{incident.id}}/link/" method="POST">
+              <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+              <div class="form-group" style="margin-bottom: 8px;">
+                <label for="correction_id">Link one of my correction requests</label>
+                <select class="form-control" id="correction_id" name="correction_id">
+                  {{# each linkable_corrections }}
+                    <option value="{{this.id}}">{{this.label}}</option>
+                  {{/each}}
+                </select>
+              </div>
+              <button type="submit" class="btn btn-default btn-sm">Link the correction</button>
+            </form>
+          {{/if}}
+        {{/if}}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{{# if incident.is_final }}
+  <div class="row">
+    <div class="col-md-12">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          {{# if incident.is_resolved }}Answer given to the employee{{else}}Reason for the dismissal{{/if}}
+        </div>
+        <div class="panel-body">
+          <p style="white-space: pre-wrap; margin-bottom: 0;">{{incident.resolution}}</p>
+          <p class="text-muted" style="margin-top: 8px; margin-bottom: 0;">
+            This incident is closed: no more messages can be added.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+{{/if}}
+
+{{# if incident.can_manage }}
+  {{# unless incident.is_final }}
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-default">
+          <div class="panel-heading">Decision</div>
+          <div class="panel-body">
+            {{# if incident.is_open }}
+              <form action="/time/incidents/{{incident.id}}/review/" method="POST" style="margin-bottom: 16px;">
+                <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+                <button type="submit" class="btn btn-default">Take it into review</button>
+                <span class="text-muted">Marks the incident as being looked at. The employee sees it.</span>
+              </form>
+            {{/if}}
+
+            <form action="/time/incidents/{{incident.id}}/resolve/" method="POST" style="margin-bottom: 16px;">
+              <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+              <div class="form-group">
+                <label for="resolution">Answer to the employee</label>
+                <textarea class="form-control" id="resolution" name="resolution" rows="3"
+                          maxlength="{{message_limit}}" required
+                          placeholder="What was found and what was decided."></textarea>
+                <p class="help-block">Required. The employee reads it on this page.</p>
+              </div>
+              <button type="submit" class="btn btn-success">Resolve the incident</button>
+            </form>
+
+            <form action="/time/incidents/{{incident.id}}/dismiss/" method="POST">
+              <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+              <div class="form-group">
+                <label for="dismissal_reason">Reason for the dismissal</label>
+                <textarea class="form-control" id="dismissal_reason" name="resolution" rows="3"
+                          maxlength="{{message_limit}}" required
+                          placeholder="Why no action is taken."></textarea>
+                <p class="help-block">Required. Closing without an explanation is not allowed.</p>
+              </div>
+              <button type="submit" class="btn btn-default">Dismiss the incident</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {{/unless}}
+{{/if}}
+
+{{# if incident.is_open_for_activity }}
+  <div class="row">
+    <div class="col-md-12">
+      <div class="panel panel-default">
+        <div class="panel-heading">Add a message</div>
+        <div class="panel-body">
+          <form action="/time/incidents/{{incident.id}}/comments/" method="POST">
+            <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+            <div class="form-group">
+              <label for="body">Message</label>
+              <textarea class="form-control" id="body" name="body" rows="3"
+                        maxlength="{{message_limit}}" required
+                        placeholder="Plain text. It cannot be edited or deleted after sending."></textarea>
+              <p class="help-block">
+                A message does not change the status of the incident.
+              </p>
+            </div>
+            <button type="submit" class="btn btn-primary">Send the message</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{{/if}}
+
+<div class="row">
+  <div class="col-md-12">
+    <p>
+      <a href="/time/incidents/" class="btn btn-default">Back to my incidents</a>
+      <a href="/time/incidents/queue/" class="btn btn-default">Incidents waiting for a decision</a>
+      <a href="/time/" class="btn btn-default">Back to time tracking</a>
+    </p>
+  </div>
+</div>
+
+{{> footer }}

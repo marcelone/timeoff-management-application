@@ -1,0 +1,101 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Report a work-time incident</h1>
+    <p class="lead">
+      Describe what happened. Dates are shown in <strong>{{timezone}}</strong>.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="well">
+      <p style="margin-bottom: 6px;"><strong>This is not a correction and not an absence.</strong></p>
+      <p style="margin-bottom: 6px;">
+        If a clock-in, a clock-out or a break was recorded with the wrong time,
+        use a <a href="/time/corrections/new/">correction request</a>: that is the
+        only path that changes your clock record.
+      </p>
+      <p style="margin-bottom: 0;">
+        If your situation is a holiday, a sick leave or any other absence, record
+        it through the <a href="/calendar/">absence process</a>. An incident never
+        changes an absence or a holiday balance.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">The incident</div>
+      <div class="panel-body">
+        <form action="/time/incidents/" method="POST">
+          <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+          <input type="hidden" name="idempotency_key" value="{{form_token}}">
+
+          <fieldset class="form-group">
+            <legend style="font-size: 16px; border-bottom: 0; margin-bottom: 6px;">Type</legend>
+            {{# each types }}
+              <div class="radio">
+                <label for="type_{{this.value}}">
+                  <input type="radio" name="type" id="type_{{this.value}}"
+                         value="{{this.value}}" {{# if_equal this.value @root.defaults.type}}checked{{/if_equal}}>
+                  <strong>{{this.label}}</strong>
+                </label>
+                <p class="help-block" style="margin-left: 20px; margin-bottom: 8px;">{{this.hint}}</p>
+              </div>
+            {{/each}}
+          </fieldset>
+
+          <div class="form-group">
+            <label for="local_date">Reference date</label>
+            <input type="date" class="form-control" id="local_date" name="local_date"
+                   value="{{defaults.date}}" required>
+            <p class="help-block">The day the situation happened. It cannot be in the future.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="time_entry_id">Related work session (optional)</label>
+            <select class="form-control" id="time_entry_id" name="time_entry_id">
+              <option value="">No related work session</option>
+              {{# each sessions }}
+                <option value="{{this.id}}" {{# if_equal this.id @root.defaults.time_entry_id}}selected{{/if_equal}}>
+                  {{this.date}} · {{this.started_at}}{{# if this.ended_at }} → {{this.ended_at}}{{else}} (open){{/if}} · {{this.modality_label}}
+                </option>
+              {{/each}}
+            </select>
+            <p class="help-block">Only your own sessions appear here. The session is not modified.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" class="form-control" id="title" name="title"
+                   maxlength="{{limits.TITLE}}" required
+                   placeholder="A short summary, for example: the app was unavailable at 08:00">
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="6"
+                      maxlength="{{limits.DESCRIPTION}}" required
+                      placeholder="What happened, when, and what you need."></textarea>
+            <p class="help-block">
+              Plain text. It is recorded as written: it cannot be edited after
+              sending, but you can add clarifications later while the incident is open.
+            </p>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="submit_incident">File the incident</button>
+          <a href="/time/incidents/" class="btn btn-default">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{> footer }}
