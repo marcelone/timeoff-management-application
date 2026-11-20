@@ -1,0 +1,116 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>My corrections</h1>
+    <p class="lead">
+      Times are shown in <strong>{{timezone}}</strong>.
+      Your original clock-ins, clock-outs and breaks are never deleted.
+    </p>
+    <p class="text-muted">
+      Company policy: <strong>{{policy_label}}</strong>.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        Correction requests
+        <a class="pull-right" href="/time/corrections/new/">Request a correction</a>
+      </div>
+      <div class="panel-body">
+        {{# if corrections }}
+          <div class="table-responsive">
+            <table class="table table-condensed">
+              <thead>
+                <tr>
+                  <th>Requested</th>
+                  <th>Type</th>
+                  <th>Recorded value</th>
+                  <th>Proposed value</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {{# each corrections }}
+                  <tr>
+                    <td>{{this.created_at}}</td>
+                    <td>{{this.type_label}}</td>
+                    <td>{{this.original_label}}</td>
+                    <td>{{this.proposed_label}}</td>
+                    <td>
+                      {{# if this.is_applied }}
+                        <span class="label label-success">{{this.status_label}}</span>
+                      {{ else if this.is_conflict }}
+                        <span class="label label-warning">{{this.status_label}}</span>
+                      {{ else if this.is_pending }}
+                        <span class="label label-info">{{this.status_label}}</span>
+                      {{ else }}
+                        <span class="label label-default">{{this.status_label}}</span>
+                      {{/if}}
+                      {{# if this.is_self_approved }}
+                        {{# if this.is_self_approval_conflict }}
+                          <span class="label label-default">administrative approval attempted</span>
+                        {{ else }}
+                          <span class="label label-default">administrative self-approval</span>
+                        {{/if}}
+                      {{/if}}
+                    </td>
+                    <td class="text-right">
+                      {{# if this.is_pending }}
+                        <form action="/time/corrections/{{this.id}}/cancel/" method="POST" style="display: inline;">
+                          <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+                          <button type="submit" class="btn btn-xs btn-default">Withdraw</button>
+                        </form>
+                      {{/if}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="6">
+                      <p class="text-muted" style="margin-bottom: 0;">
+                        <strong>Reason:</strong> {{this.reason}}
+                        {{# if this.rejection_reason }}
+                          · <strong>Resolution:</strong> {{this.rejection_reason}}
+                        {{/if}}
+                        {{# if this.conflict_reason }}
+                          · <strong>Needs review:</strong> {{this.conflict_reason}}
+                        {{/if}}
+                        {{# if this.resolved_at }}
+                          · <strong>Resolved:</strong> {{this.resolved_at}}
+                        {{/if}}
+                        {{# if this.is_self_approved }}
+                          {{# if this.is_self_approval_conflict }}
+                            · <strong>Administrative approval attempted:</strong> the request was not applied because of a conflict.
+                          {{ else }}
+                            · <strong>Administrative self-approval:</strong> this request was
+                            approved by its own requester, who held the administrative role
+                            of the company
+                          {{/if}}
+                        {{/if}}
+                        · <strong>Policy applied:</strong> {{this.policy_label}}
+                      </p>
+                    </td>
+                  </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+        {{ else }}
+          <p class="text-muted">You have not requested any correction yet.</p>
+        {{/if}}
+      </div>
+    </div>
+
+    <p>
+      <a href="/time/" class="btn btn-default">Back to time tracking</a>
+      <a href="/time/approvals/" class="btn btn-default">Requests waiting for a decision</a>
+    </p>
+  </div>
+</div>
+
+{{> footer }}

@@ -1,0 +1,63 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>{{type_label}}</h1>
+    <p class="lead">Which record has to be corrected?</p>
+    <p class="text-muted">
+      Times are shown in <strong>{{timezone}}</strong>.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">Your work sessions</div>
+      <div class="panel-body">
+        {{# if sessions }}
+          {{# each sessions }}
+            <div class="row" style="margin-bottom: 12px;">
+              <div class="col-md-8">
+                <strong>{{this.date}}</strong>
+                · {{this.started_at}} → {{# if this.ended_at}}{{this.ended_at}}{{else}}<em>still open</em>{{/if}}
+                · {{this.modality_label}}
+                {{# if this.is_declared }}
+                  <span class="label label-warning">declared</span>
+                {{/if}}
+                {{# each this.breaks }}
+                  <p class="text-muted" style="margin-bottom: 0;">
+                    Break: {{this.type_label}} · {{this.started_at}} → {{# if this.ended_at}}{{this.ended_at}}{{else}}<em>open</em>{{/if}}
+                    {{# if this.counts_as_work }}(counts as worked time){{/if}}
+                  </p>
+                {{/each}}
+              </div>
+              <div class="col-md-4 text-right">
+                <a class="btn btn-default btn-block" href="/time/corrections/new/{{../type}}/entry-{{this.id}}/">
+                  Select this session
+                </a>
+                {{# each this.breaks }}
+                  <a class="btn btn-default btn-block" style="margin-top: 6px;"
+                     href="/time/corrections/new/{{../../type}}/break-{{this.id}}/">
+                    Select this break
+                  </a>
+                {{/each}}
+              </div>
+            </div>
+            <hr>
+          {{/each}}
+        {{ else }}
+          <p class="text-muted">There are no work sessions recorded yet.</p>
+        {{/if}}
+      </div>
+    </div>
+
+    <p>
+      <a href="/time/corrections/new/" class="btn btn-default">Back</a>
+    </p>
+  </div>
+</div>
+
+{{> footer }}

@@ -194,5 +194,97 @@ Implementat com el primer mòdul de negoci real sobre aquest contracte.
 - **F06 — migració atòmica**: tota la DDL de `20260105000000-time-breaks.js` va en
   una transacció; una fallada intermitja fa rollback complet i el reintent funciona.
 
-**Fora d'abast (blocs següents)**: pauses, correccions, incidències,
-autoresolució, recordatoris, scheduler, estadístiques.
+
+**Correccions de fitxatges i aprovacions (bloc 3)**
+
+- Taules noves: `time_correction_policies` (mode per empresa) i `time_corrections`
+  (la sol·licitud). Columnes noves: `time_entries.source` (`direct`|`declared`) i
+  `time_entries.version`, `time_entry_events.correction_id` i
+  `time_entry_events.payload`. Migració `20260106000000-time-corrections.js`, amb
+  tota la DDL en una transacció (com el bloc 2).
+- **Mai no s'esborra l'original**: la correcció és una *sol·licitud* que conserva
+  valor original, valor proposat, motiu, política aplicada i qui resol i quan.
+  Aplicar-la canvia la projecció efectiva (`time_entries` / `time_breaks`) i
+  **afegeix** un esdeveniment `correction` al timeline; els esdeveniments
+  `in` / `out` / `break_start` / `break_end` originals no es reescriuen mai. El
+  còmput del dia original sempre es pot reconstruir.
+- **Política per empresa** (`/settings/corrections/`): `self_service` (s'aplica
+  immediatament) o `approval_required` (per defecte, el prudent). La política es
+  **captura a la sol·licitud**: canviar-la no aprova pendents, no reverteix
+  aplicades i no toca l'historial.
+- **Casos**: entrada, sortida, sortida oblidada (jornada oberta), jornada
+  completament oblidada, inici/final de pausa, tipus de pausa, pausa oblidada i
+  modalitat. El formulari és en passos (tipus → registre → valors), de manera que
+  només es mostren els camps del tipus triat i no cal JavaScript (la CSP només
+  permet scripts amb nonce).
+- **Validació al servei** (no només a les rutes): instant construït pel servidor
+  a partir de data + hora local **en la zona efectiva** (el navegador no envia
+  instants); un horari inexistent pel canvi d'hora es rebutja; no es pot tancar
+  una jornada amb una pausa activa; no hi pot haver solapaments de jornades ni de
+  pauses; cap valor futur; cap jornada declarada oberta sense fi.
+- **Conflictes**: cada sol·licitud es fa contra una *instantània* del valor que
+  corrigeix. En resoldre-la, el valor actual es compara amb aquesta instantània
+  **dins de la mateixa transacció** que bloqueja la fila. Si no coincideix, la
+  correcció **no s'aplica**, la sol·licitud es conserva amb estat `conflict` i un
+  humà la resol. És el mecanisme proporcional que demana el producte (no cal un
+  versionat complex); `time_entries.version` queda com a dada auditable.
+- **Resolució atòmica i segura en repetició**: les mutacions de jornades es
+  serialitzen per empleat abans de validar solapaments; la sol·licitud es reclama amb un
+  `UPDATE ... WHERE status='pending'`, de manera que dues aprovacions (o una
+  aprovació i un rebuig) concurrents no poden guanyar les dues i una sol·licitud
+  no pot acabar aprovada i rebutjada alhora.
+- **Autorització**: el servei decideix qui pot resoldre (cap ruta ho fa per
+  compte del servei): el cap de departament (`Department.boss`) o un
+  `DepartmentSupervisor` del departament de l'empleat, o un owner/admin de
+  l'empresa. El rol RBAC `manager` **no** significa supervisor.
+- **Autoaprovació administrativa** (ajust del bloc 3): el sol·licitant **sí** pot
+  resoldre la seva pròpia sol·licitud, però només com a excepció administrativa
+  explícita: ha de tenir el rol administratiu vigent (owner/admin) i la
+  sol·licitud ha de pertànyer a la seva empresa. **Ni el cap de departament ni un
+  `DepartmentSupervisor` s'autoaproven mai**; el rol RBAC `manager` tampoc. La
+  condició es comprova al servei, no només a la interfície, i la resolució
+  conserva les mateixes validacions temporals i de concurrència que qualsevol
+  altra aprovació. En mode `self_service` no hi ha cap aprovació i el
+  comportament no canvia. L'excepció es traça en tres llocs: la columna
+  `time_corrections.self_approved`, una fila d'auditoria explícita
+  (`attribute = 'administrative_self_approval'`) i, si s'aplica, el payload de
+  l'esdeveniment `correction` (`administrativeSelfApproval: true`). En un
+  `conflict`, l'indicador registra l'intent d'aprovació, sense aplicació.
+  Migració
+  `20260107000000-time-corrections-self-approval.js` (columna booleana +
+  `CHECK` de PostgreSQL `NOT self_approved OR status IN ('applied','conflict')`).
+- **Auditoria**: fila a la taula `audit` (`entity_type = 'TIME_CORRECTION'` amb
+  estat, tipus, política, motiu, valor original, valor proposat i resolutor) i
+  esdeveniment `correction` al timeline amb la referència explícita a la
+  sol·licitud i el payload del canvi.
+- **Garanties de base de dades**: índex únic parcial
+  (`time_corrections_one_pending_per_target ... WHERE status='pending'`) — una
+  sol·licitud pendent per objectiu i empleat; `CHECK` de PostgreSQL sobre
+  `status`, `type`, `policy`, `source` i el tipus d'esdeveniment; FK
+  `time_entry_events.correction_id → time_corrections` (`ON DELETE SET NULL`).
+  Verificat a PostgreSQL 16.
+- **Tipus de pausa i el seu criteri de còmput**: en canviar el tipus, el
+  `counts_as_work` **es conserva** (és el criteri que va regir quan la pausa va
+  passar) perquè la política històrica no es pot reconstruir de manera fiable
+  (no hi ha historial deVersions de `break_policies`) i reaplicar la política
+  d'avui reescriuria el passat. La regla queda documentada a la sol·licitud, a
+  l'esdeveniment i a la interfície.
+- **Jornada declarada**: una jornada reconstruïda es desa amb `source='declared'`
+  i es presenta com a declarada, mai com un fitxatge verificat. Exigeix hora de
+  fi (regla explícita: una sessió oberta s'ha de tancar amb el fitxatge normal).
+- **Sortida declarada**: es distingeixen tres instants — el moment de registrar
+  la declaració, l'hora declarada i l'hora efectiva acceptada. El servidor mai no
+  atribueix a la persona treballadora una hora que no ha declarat.
+- **Eliminació d'empleat / d'empresa**: `User.remove` ja es bloqueja si hi ha
+  fitxatges; el `CompanyRemover` ara esborra explícitament les taules del
+  mòdul de temps i les polítiques de pauses en una única transacció: si falla,
+  es conserva tot l'historial. Les migracions impedeixen fer `down` quan
+  eliminaria sol·licituds o indicadors d'autoaprovació existents.
+- **Compatibilitat**: el bloc 1 (entrada/sortida), el bloc 2 (pauses i còmput) i
+  els blocs anteriors de l'aplicació es mantenen; les sessions i pauses
+  existents es poden corregir sense migrar-les.
+
+**Fora d'abast (blocs següents)**: recordatoris automàtics, correus
+interactius, scheduler, autotancament provisional, detecció de patrons,
+alertes per excés de correccions, dashboard analític de supervisió,
+geolocalització, nòmines, hores extres aprovades i integracions externes.

@@ -1,0 +1,49 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Request a correction</h1>
+    <p class="lead">
+      Times are shown in <strong>{{timezone}}</strong>.
+      Your original record is never deleted: a correction adds a new, auditable entry.
+    </p>
+    <p class="text-muted">
+      Company policy: <strong>{{policy_label}}</strong>.
+      {{#if_equal policy "self_service"}}
+        Your correction will be applied as soon as you send it.
+      {{else}}
+        Your correction will be sent to your supervisor before it changes anything.
+      {{/if_equal}}
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">What needs to be corrected?</div>
+      <div class="panel-body">
+        {{# each types }}
+          <div class="row" style="margin-bottom: 10px;">
+            <div class="col-md-9">
+              <strong>{{this.label}}</strong>
+              <p class="text-muted" style="margin-bottom: 0;">{{this.description}}</p>
+            </div>
+            <div class="col-md-3 text-right">
+              <a class="btn btn-primary btn-block" href="/time/corrections/new/{{this.value}}/">Select</a>
+            </div>
+          </div>
+          <hr>
+        {{/each}}
+      </div>
+    </div>
+
+    <p>
+      <a href="/time/corrections/" class="btn btn-default">Back to my corrections</a>
+    </p>
+  </div>
+</div>
+
+{{> footer }}

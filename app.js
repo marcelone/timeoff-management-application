@@ -198,10 +198,12 @@ app.use(
 app.use('/settings/', require('./lib/route/departments'));
 app.use('/settings/', require('./lib/route/work_centers'));
 app.use('/settings/', require('./lib/route/break_policy'));
+app.use('/settings/', require('./lib/route/correction_policy'));
 app.use('/settings/', require('./lib/route/bankHolidays'));
 
 // Time tracking (block 1): own sessions + expected schedules.
 app.use('/time', require('./lib/route/time'));
+app.use('/time', require('./lib/route/corrections'));
 
 app.use(
   '/users/',

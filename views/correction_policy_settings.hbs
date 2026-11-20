@@ -1,0 +1,56 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Correction policy</h1>
+    <p class="lead">
+      Decide how the employees of this company correct their recorded work sessions.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">How are corrections resolved?</div>
+      <div class="panel-body">
+        <form action="/settings/corrections/" method="POST">
+          <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+
+          {{# each modes }}
+            <div class="radio">
+              <label>
+                <input type="radio" name="mode" value="{{this.value}}" {{# if this.is_current}}checked="checked"{{/if}}>
+                <strong>{{this.label}}</strong>
+              </label>
+            </div>
+          {{/each}}
+
+          <hr>
+
+          <p class="text-muted">
+            With <strong>approval required</strong> (the default for a company that has never
+            configured anything) a correction is sent to the supervisor of the employee and only
+            changes the record once it is approved.
+          </p>
+          <p class="text-muted">
+            With <strong>self-service</strong> the correction is applied as soon as the employee
+            sends it. The original clock-in, clock-out and breaks are preserved either way, and every
+            change is audited.
+          </p>
+          <p class="text-muted">
+            Changing this setting does not approve pending requests, does not revert corrections that
+            were already applied and does not modify the history: each request keeps the policy that
+            applied when it was submitted.
+          </p>
+
+          <button type="submit" class="btn btn-primary">Save policy</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{> footer }}

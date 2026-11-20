@@ -1,0 +1,88 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Correction requests waiting for a decision</h1>
+    <p class="lead">
+      Times are shown in <strong>{{timezone}}</strong>.
+      Approving a request applies it and keeps the original record in the audit trail.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-12">
+    <div class="panel panel-default">
+      <div class="panel-heading">Pending requests</div>
+      <div class="panel-body">
+        {{# if corrections }}
+          {{# each corrections }}
+            <div class="well" style="margin-bottom: 16px;">
+              <div class="row">
+                <div class="col-md-8">
+                  <p style="margin-bottom: 4px;">
+                    <strong>{{this.employee_name}}</strong>
+                    · <span class="label label-info">{{this.type_label}}</span>
+                  </p>
+                  <p style="margin-bottom: 4px;">
+                    <strong>Recorded:</strong> {{this.original_label}}
+                    &nbsp;→&nbsp;
+                    <strong>Proposed:</strong> {{this.proposed_label}}
+                  </p>
+                  <p style="margin-bottom: 4px;">
+                    <strong>Reason:</strong> {{this.reason}}
+                  </p>
+                  <p class="text-muted" style="margin-bottom: 0;">
+                    Requested {{this.created_at}} · policy {{this.policy_label}}
+                  </p>
+                </div>
+                <div class="col-md-4">
+                  {{# if this.can_decide}}
+                    <form action="/time/approvals/{{this.id}}/approve/" method="POST">
+                      <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+                      <button type="submit" class="btn btn-success btn-block">Approve</button>
+                    </form>
+                    <form action="/time/approvals/{{this.id}}/reject/" method="POST" style="margin-top: 8px;">
+                      <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+                      <div class="form-group" style="margin-bottom: 6px;">
+                        <label class="sr-only" for="reason-{{this.id}}">Reason for the rejection</label>
+                        <input type="text" class="form-control" id="reason-{{this.id}}" name="reason"
+                               placeholder="Why is it rejected?">
+                      </div>
+                      <button type="submit" class="btn btn-danger btn-block">Reject</button>
+                    </form>
+                    {{# if this.is_own}}
+                      <p class="text-muted" style="margin-top: 8px; margin-bottom: 0;">
+                        This is your own request: approving it is an administrative
+                        self-approval and it is recorded in the audit trail.
+                      </p>
+                    {{/if}}
+                  {{ else }}
+                    <p class="text-muted" style="margin-bottom: 0;">
+                      {{# if this.is_own}}
+                        You cannot decide on your own request.
+                      {{ else }}
+                        You are not allowed to resolve this request.
+                      {{/if}}
+                    </p>
+                  {{/if}}
+                </div>
+              </div>
+            </div>
+          {{/each}}
+        {{ else }}
+          <p class="text-muted">There is no request waiting for a decision.</p>
+        {{/if}}
+      </div>
+    </div>
+
+    <p>
+      <a href="/time/" class="btn btn-default">Back to time tracking</a>
+      <a href="/time/corrections/" class="btn btn-default">My corrections</a>
+    </p>
+  </div>
+</div>
+
+{{> footer }}
