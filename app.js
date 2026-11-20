@@ -197,6 +197,7 @@ app.use(
 // '/settings/' path is quite big hence there are two modules providing handlers for it
 app.use('/settings/', require('./lib/route/departments'));
 app.use('/settings/', require('./lib/route/work_centers'));
+app.use('/settings/', require('./lib/route/break_policy'));
 app.use('/settings/', require('./lib/route/bankHolidays'));
 
 // Time tracking (block 1): own sessions + expected schedules.

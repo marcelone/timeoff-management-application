@@ -64,7 +64,9 @@
         <div class="alert alert-success">
           <strong>Last session finished.</strong>
           In {{last_closed.started_at}} → out {{last_closed.ended_at}}
-          (elapsed {{last_closed.elapsed_label}}, {{last_closed.modality_label}}).
+          (elapsed {{last_closed.totals.elapsedMinutes}} min,
+          breaks {{last_closed.totals.breakMinutes}} min,
+          <strong>computed {{last_closed.totals.computedMinutes}} min</strong>).
         </div>
       {{/if}}
 
@@ -77,19 +79,105 @@
             started at <strong>{{open_entry.started_at}}</strong>
           </p>
           <p class="text-muted">
-            {{open_entry.date}} · modality {{open_entry.modality_label}} ·
-            elapsed so far {{open_entry.elapsed_label}}
+            {{open_entry.date}} · modality {{open_entry.modality_label}} · {{timezone}}
           </p>
+
+          <table class="table table-condensed" style="margin-bottom: 12px;">
+            <tbody>
+              <tr>
+                <td>Elapsed (since clock-in)</td>
+                <td class="text-right"><strong>{{open_entry.totals.elapsedMinutes}} min</strong></td>
+              </tr>
+              <tr>
+                <td>Breaks (total)</td>
+                <td class="text-right">{{open_entry.totals.breakMinutes}} min</td>
+              </tr>
+              <tr>
+                <td>Breaks counted as worked time</td>
+                <td class="text-right">{{open_entry.totals.countableBreakMinutes}} min</td>
+              </tr>
+              <tr>
+                <td>Breaks not counted</td>
+                <td class="text-right">{{open_entry.totals.nonCountableBreakMinutes}} min</td>
+              </tr>
+              <tr class="active">
+                <td><strong>Computed worked time</strong></td>
+                <td class="text-right">
+                  <strong>{{open_entry.totals.computedMinutes}} min</strong>
+                  <span class="text-muted">(provisional)</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {{# if open_break }}
+            <div class="alert alert-warning" data-vpp="active-break">
+              <strong>Break in progress:</strong> {{open_break.type_label}},
+              started at {{open_break.started_at}}.
+              {{# if open_break.counts_as_work }}
+                It counts as worked time.
+              {{ else }}
+                It does <strong>not</strong> count as worked time, so it is already deducted.
+              {{/if}}
+            </div>
+            <form action="/time/break/stop" method="POST">
+              <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+              <button type="submit" class="btn btn-warning btn-block">Finish break</button>
+            </form>
+          {{ else }}
+            <form action="/time/break/start" method="POST" class="form-inline">
+              <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+              <div class="form-group">
+                <label class="sr-only" for="break_type">Break type</label>
+                <select class="form-control" id="break_type" name="type">
+                  {{# each break_types }}
+                    <option value="{{this.value}}">{{this.label}}</option>
+                  {{/each}}
+                </select>
+              </div>
+              <button type="submit" class="btn btn-default">Start break</button>
+            </form>
+          {{/if}}
+
+          <hr>
 
           <form action="/time/stop" method="POST">
             <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
-            <button type="submit" class="btn btn-warning btn-block">Finish work session</button>
+            <button type="submit" class="btn btn-warning btn-block" {{# if open_break }}disabled="disabled"{{/if}}>
+              Finish work session
+            </button>
             <p class="help-block" style="margin-bottom: 0;">
-              The end time is taken from the server clock when you submit.
+              {{# if open_break }}
+                Finish the active break before ending the work session.
+              {{ else }}
+                The end time is taken from the server clock when you submit.
+              {{/if}}
             </p>
           </form>
         </div>
       </div>
+
+      {{# if comparison }}
+        <div class="panel panel-default" data-vpp="day-comparison">
+          <div class="panel-heading">Expected vs computed ({{comparison.day}})</div>
+          <div class="panel-body">
+            {{# if comparison.available }}
+              <p style="margin-bottom: 6px;">
+                Expected today: <strong>{{comparison.expected_label}}</strong> ·
+                computed: <strong>{{comparison.elapsed_label}}</strong> ·
+                difference: <strong>{{comparison.difference_label}}</strong>
+              </p>
+              <p class="text-muted" style="margin-bottom: 0;">
+                {{comparison.difference_note}}{{# if comparison.provisional }} · the session is still open, so this is provisional{{/if}}.
+              </p>
+            {{ else }}
+              <p class="text-muted" style="margin-bottom: 0;">
+                Difference not available: {{comparison.reason}}. No deficit is assumed.
+              </p>
+            {{/if}}
+          </div>
+        </div>
+      {{/if}}
     {{/unless}}
 
   </div>
@@ -111,7 +199,8 @@
                 <th>In</th>
                 <th>Out</th>
                 <th>Elapsed</th>
-                <th>Modality</th>
+                <th>Breaks</th>
+                <th>Computed</th>
               </tr>
             </thead>
             <tbody>
@@ -120,14 +209,16 @@
                   <td>{{this.date}}</td>
                   <td>{{this.started_at}}</td>
                   <td>{{# if this.ended_at}}{{this.ended_at}}{{else}}<em>open</em>{{/if}}</td>
-                  <td>{{this.elapsed_label}}</td>
-                  <td>{{this.modality_label}}</td>
+                  <td>{{this.totals.elapsedMinutes}} min</td>
+                  <td>{{this.totals.breakMinutes}} min</td>
+                  <td><strong>{{this.totals.computedMinutes}} min</strong></td>
                 </tr>
               {{/each}}
             </tbody>
           </table>
           <p class="text-muted" style="margin-bottom: 0;">
-            Elapsed time only: breaks are not implemented yet, so this is not net worked time.
+            Computed = elapsed minus breaks the company does not count as worked time.
+            It is not approved overtime.
           </p>
         {{ else }}
           <p class="text-muted">No work sessions recorded yet.</p>

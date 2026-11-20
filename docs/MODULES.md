@@ -147,5 +147,52 @@ Implementat com el primer mòdul de negoci real sobre aquest contracte.
 - `Company.get_today()` fa fallback a UTC si l'empresa no té zona (abans llançava
   i provocava un 500 a qualsevol pàgina).
 
+**Pauses i còmput (bloc 2)**
+
+- Taules noves: `break_policies` (per empresa i tipus: computa o no) i `time_breaks`
+  (una pausa amb inici/fi, tipus i **snapshot** de la política).
+- Tres tipus: `regular`, `personal`, `justified`; per defecte **cap computa**.
+  Configuració a `/settings/breaks/` (permís `company.settings`).
+- **Històric estable per construcció**: la pausa desa `counts_as_work` en començar,
+  així canviar la política no recalcula jornades ja tancades.
+- Una sola pausa activa per jornada: **índex únic parcial**
+  (`... WHERE ended_at IS NULL`), verificat a PostgreSQL.
+- No es pot tancar la jornada amb una pausa activa (`ACTIVE_BREAK`); l'empleat
+  l'ha de finalitzar primer. Sense autotancaments.
+- Esdeveniments `break_start` / `break_end` al mateix log append-only del bloc 1.
+- Còmput (`lib/modules/time/compute.js`): transcorregut, pauses, pauses computables,
+  i **computat = transcorregut − pauses no computables**, en ms i arrodonit al final
+  (sense errors per DST). Una pausa no computable activa es descuenta fins a "ara".
+- Comparació amb l'horari previst **només quan és fiable**: si el dia no té horari,
+  és no laborable, és festiu de l'empresa o té una absència aprovada, es mostra
+  «diferència no disponible» amb el motiu. Una absència no és temps treballat i un
+  dia no laborable no genera dèficit. La diferència no és hores extres.
+
+**Correccions de l'auditoria del bloc 2**
+
+- **F01/F02 — serialització**: `lib/modules/time/locks.js` bloqueja la fila de la
+  jornada (`SELECT ... FOR UPDATE` a PostgreSQL; `UPDATE` no-op a SQLite) abans de
+  llegir l'estat, tant a l'inici/fi de pausa com al tancament. Així no pot existir
+  una jornada tancada amb una pausa activa, i una pausa no pot començar abans del
+  final de l'anterior (`OVERLAPS_PREVIOUS`).
+- **F07 — ordre temporal**: sota el mateix bloqueig, el tancament rebutja una hora
+  anterior al final d'una pausa ja tancada (`BREAK_AFTER_END`). Una petició que ha
+  esperat pot tornar-se a provar amb una hora de servidor actualitzada.
+- **Política i transaccions**: la lectura de política d'una mutació utilitza la seva
+  mateixa transacció; així veu les escriptures pròpies i no necessita una segona
+  connexió mentre manté la primera ocupada. Les desades simultànies se serialitzen
+  per empresa per evitar que es barregin valors de formularis diferents.
+- **F03 — política**: l'estat de les caselles es resol a la ruta (`counts` per tipus)
+  en lloc de fer cerques de context dins del bucle de Handlebars.
+- **F04 — agregació diària**: la comparació suma totes les sessions del dia local i
+  retalla sessions i pauses a la finestra `[inici del dia, mitjanit següent)`, així
+  que diverses sessions se sumen i una sessió que travessa mitjanit no s'atribueix
+  sencera a un dia.
+- **F05 — dates civils**: festius i absències es desen com a dates civils a les
+  00:00 UTC; es comparen en la mateixa representació (rang del dia civil en UTC),
+  mentre que la zona efectiva decideix QUIN dia es consulta.
+- **F06 — migració atòmica**: tota la DDL de `20260105000000-time-breaks.js` va en
+  una transacció; una fallada intermitja fa rollback complet i el reintent funciona.
+
 **Fora d'abast (blocs següents)**: pauses, correccions, incidències,
 autoresolució, recordatoris, scheduler, estadístiques.

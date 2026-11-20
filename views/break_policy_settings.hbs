@@ -1,0 +1,61 @@
+{{> header }}
+
+<div class="row">
+  <div class="col-md-12">
+    <h1>Break policy</h1>
+    <p class="lead">
+      Decide which break types count as worked time in this company.
+    </p>
+  </div>
+</div>
+
+{{> show_flash_messages }}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="alert alert-info">
+      This is a company policy, not a legal rule: adapt it to your collective
+      agreement. A break keeps the criterion that was active when it started, so
+      changing this configuration never recomputes sessions that are already closed.
+      It only affects breaks started from now on.
+    </div>
+
+    <form action="/settings/breaks/" method="POST">
+      <input type="hidden" name="_csrf" value="{{@root.csrf_token}}">
+
+      <table class="table table-condensed">
+        <thead>
+          <tr>
+            <th>Break type</th>
+            <th style="width: 220px;">Counts as worked time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{# each break_types }}
+            <tr>
+              <td>
+                {{this.label}}
+                <span class="text-muted">(<code>{{this.value}}</code>)</span>
+              </td>
+              <td>
+                <label class="checkbox-inline">
+                  <input type="checkbox" name="counts_{{this.value}}" value="1"
+                    {{# if this.counts }}checked="checked"{{/if}}>
+                  counts as worked time
+                </label>
+              </td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <p class="text-muted">
+        Initial configuration: none of the three types counts as worked time.
+      </p>
+
+      <button type="submit" class="btn btn-success">Save policy</button>
+    </form>
+  </div>
+</div>
+
+{{> footer }}
